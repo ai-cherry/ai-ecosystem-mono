@@ -1,0 +1,49 @@
+{
+  "name": "AI Ecosystem Development",
+  "dockerFile": "Dockerfile",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "docker-compose -f docker-compose.dev.yml up -d",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker",
+        "hashicorp.terraform",
+        "github.vscode-github-actions",
+        "ryanluker.vscode-coverage-gutters",
+        "njpwerner.autodocstring",
+        "kodu-ai.claude-dev-experimental"
+      ],
+      "settings": {
+        "python.linting.enabled": true,
+        "python.linting.flake8Enabled": true,
+        "python.formatting.provider": "black",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.organizeImports": true
+        },
+        "python.testing.pytestEnabled": true
+      }
+    }
+  },
+  "secrets": {
+    // Use organization-level secrets
+    "GCP_SERVICE_ACCOUNT_KEY": {
+      "description": "GCP Service Account for development",
+      "documentationUrl": "https://cloud.google.com/iam/docs/creating-managing-service-account-keys"
+    },
+    "PINECONE_API_KEY": {
+      "description": "Pinecone API Key for vector database"
+    },
+    "OPENAI_API_KEY": {
+      "description": "OpenAI API Key for embeddings and LLM"
+    }
+  },
+  "remoteEnv": {
+    "FIRESTORE_PROJECT_ID": "${localEnv:GCP_PROJECT_ID}",
+    "PINECONE_ENVIRONMENT": "us-west1-gcp"
+  }
+}
