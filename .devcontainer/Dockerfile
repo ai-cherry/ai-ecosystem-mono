@@ -1,46 +1,36 @@
-# Base image: Python 3.11 Dev Container with common build tools
+# Base Image: Python 3.11 Dev Container with common build tools
 FROM mcr.microsoft.com/devcontainers/python:3.11
 
-# Install base system packages (REMOVED docker.io)
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-  && apt-get -y install --no-install-recommends \
-    curl gnupg lsb-release \
-    redis-tools \
-    bash-completion \
-    git \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+# Install base system packages (Your existing list, e.g., git, redis-tools, etc.)
+# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && apt-get install -y --no-install-recommends <your_packages> && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Google Cloud SDK
-RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
-  | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
-  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
-  | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
-  apt-get update && apt-get install -y google-cloud-sdk
+# --- NEW: Install pipx and core Python tools ---
+USER root
+RUN python3 -m pip install --no-cache-dir pipx \
+    && pipx ensurepath \
+    && pipx install --pip-args="--no-cache-dir" poetry \
+    && pipx install --pip-args="--no-cache-dir" pre-commit
 
-# Install Terraform
-RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add - && \
-  apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main" && \
-  apt-get update && apt-get install -y terraform
+# Ensure pipx path is available for all users (including vscode later)
+# This might need adjustment based on exact base image setup, but often works:
+RUN echo 'export PATH="$PATH:/root/.local/bin"' >> /etc/bash.bashrc \
+    && echo 'export PATH="$PATH:/root/.local/bin"' >> /etc/profile.d/pipx.sh \
+    && chmod +x /etc/profile.d/pipx.sh
+# Alternatively, specifically add to vscode user's PATH if needed after user creation below
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    # This needs to be set *before* setup.sh runs poetry install
-    POETRY_VIRTUALENVS_IN_PROJECT=true
+# --- Node.js/PNPM Installation ---
+# Option A: Keep the Dev Container Feature for Node in devcontainer.json (Recommended)
+# Option B: Install manually here if not using the feature
+# RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
+#    && apt-get install -y nodejs \
+#    && npm install -g pnpm
 
-# Install pipx (which setup.sh will use to install poetry, pre-commit)
-# REMOVED global pip install of poetry, pytest, black, flake8, etc.
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir pipx
+# --- Other installations (GCloud, Terraform) ---
+# Keep your existing RUN commands for gcloud/terraform, but fix apt-key warning
+# Example Fix for Terraform (adjust repo details if needed):
+RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list > /dev/null \
+    && apt-get update && apt-get install -y terraform
 
-# Add `vscode` user so Codespaces can run as non-root
-RUN useradd -m vscode && \
-    echo 'vscode ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-vscode && \
-    chown -R vscode:vscode /home/vscode
-
-# Optional: Healthcheck
-HEALTHCHECK CMD python -c "import sys; sys.exit(0 if True else 1)"
-
-# Note: Project dependencies AND core Python dev tools (poetry, pre-commit)
-# are now installed by setup.sh using pipx and poetry install.
+# [Your existing COPY commands, USER vscode setup, HEALTHCHECK etc.]
+# If HEALTHCHECK exists, make it meaningful: HEALTHCHECK CMD ["poetry", "--version"] || exit 1
