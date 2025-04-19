@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/devcontainers/python:3.11
 
-# Install additional dependencies
+# Install base tools
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends \
         curl gnupg lsb-release \
@@ -8,8 +8,7 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
         docker.io \
         bash-completion \
         git \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Google Cloud SDK
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | \
@@ -19,19 +18,19 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.
     apt-get update && apt-get install -y google-cloud-sdk
 
 # Install Terraform
-RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add - \
-    && apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
-    && apt-get update && apt-get install -y terraform
+RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add - && \
+    apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main" && \
+    apt-get update && apt-get install -y terraform
 
-# Set Python environment variables
+# Set env vars
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=true
 
-# Pre-install Python dependencies
+# Install pip requirements
 COPY orchestrator-requirements.txt /tmp/orchestrator-requirements.txt
 COPY shared-requirements.txt /tmp/shared-requirements.txt
 
-# Install Python dependencies, including development tools
 RUN pip install --no-cache-dir -r /tmp/orchestrator-requirements.txt && \
-    pip install --no-cache-dir -r /tmp/shared-requirements.txt && \
-    pip install --no-cache-dir pytest pytest-cov black flake8 isort mypy pre-commit temporalio
+    pip install --no-cache-dir -r /tmp/shared-require
+
