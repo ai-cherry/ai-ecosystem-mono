@@ -1,42 +1,44 @@
 #!/bin/bash
-set -euo pipefail
+set -euo pipefail # Keep this!
 
-echo "🧪 Checking Python and Node..."
+echo "✅ Running post-create setup..."
+
+# Optional checks (tools should exist now)
+echo "🧪 Checking core tools..."
 python3 --version
-node --version || echo "⚠️ Node is missing — you may want to install it or use a devcontainer with node feature"
+poetry --version || (echo "❌ Poetry not found!" && exit 1)
+node --version || echo "⚠️ Node not found (install if needed)"
+pnpm --version || (echo "❌ PNPM not found! Install Node/PNPM globally." && exit 1)
+pre-commit --version || (echo "❌ pre-commit not found!" && exit 1)
 
-# Step 1: Install pipx safely
-echo "🔧 Installing pipx..."
-python3 -m pip install --quiet --user pipx
-python3 -m pipx ensurepath
 
-# Step 2: Install Poetry and PNPM (safe re-install)
-echo "🔧 Installing Poetry and PNPM..."
-pipx install poetry || echo "✔️ Poetry already installed"
-npm install -g pnpm || echo "✔️ PNPM already installed"
-
-# Step 3: Bootstrap monorepo (recursive app/package setup)
-ROOT_DIR="/workspaces/ai-ecosystem-mono"
+# Step 1: Install monorepo dependencies
+ROOT_DIR="/workspaces/ai-ecosystem-mono" # Standard Codespaces path
 
 echo "📦 Installing Python deps in /apps and /packages..."
-find "$ROOT_DIR/apps" "$ROOT_DIR/packages" -name "pyproject.toml" \
-  -execdir poetry install --no-interaction --no-root \;
+find "$ROOT_DIR/apps" "$ROOT_DIR/packages" -name "pyproject.toml" -print -execdir poetry install --no-interaction --no-root \;
+echo "🐍 Python dependencies installed."
 
 echo "📦 Installing JS deps in /apps and /packages..."
-find "$ROOT_DIR/apps" "$ROOT_DIR/packages" -name "package.json" \
-  -execdir pnpm install \;
+find "$ROOT_DIR/apps" "$ROOT_DIR/packages" -name "package.json" -print -execdir pnpm install \;
+echo "📜 JS dependencies installed."
 
-# Step 4: Pre-commit, just in case
+
+# Step 2: Install pre-commit hooks
 if [ -f "$ROOT_DIR/.pre-commit-config.yaml" ]; then
-  echo "✅ Installing pre-commit hooks..."
-  pipx install pre-commit || echo "✔️ Pre-commit already installed"
+  echo " Git hook setup..."
+  # Ensure we are in the root, pre-commit needs to find .git
+  cd "$ROOT_DIR"
   pre-commit install
+  echo "✅ Pre-commit hooks installed."
+else
+    echo "⏭️ No .pre-commit-config.yaml found, skipping hook installation."
 fi
 
-# Step 5: Optional — seed .env if it doesn’t exist
+# Step 3: Optional — seed .env if it doesn’t exist
 if [ ! -f "$ROOT_DIR/.env" ] && [ -f "$ROOT_DIR/.env.example" ]; then
   cp "$ROOT_DIR/.env.example" "$ROOT_DIR/.env"
   echo "📄 Copied .env from .env.example"
 fi
 
-echo "✅ Dev environment ready to go!"
+echo "🎉 Dev environment ready to go!"
