@@ -8,7 +8,7 @@
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
   "postCreateCommand": "./setup.sh",
-  "envFile": ".env", // ✅ Optional, points to .env file in repo
+  "envFile": ".env",
   "remoteEnv": {
     "FIRESTORE_PROJECT_ID": "${localEnv:GCP_PROJECT_ID}",
     "PINECONE_ENVIRONMENT": "us-west1-gcp"
