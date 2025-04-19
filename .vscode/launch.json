@@ -1,6 +1,7 @@
 {
   "version": "0.2.0",
   "configurations": [
+    // 1. Launch Uvicorn (Orchestrator API)
     {
       "name": "Run Orchestrator API",
       "type": "python",
@@ -9,48 +10,51 @@
       "args": [
         "orchestrator.app.main:app",
         "--reload",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8000"
+        "--host", "0.0.0.0",
+        "--port", "8000"
       ],
-      "jinja": true,
       "justMyCode": false,
+      "jinja": true,
+      "envFile": "${workspaceFolder}/.env",  // <-- pulls from .env
       "env": {
-        "REDIS_URL": "redis://:devpassword@localhost:6379",
+        "REDIS_URL": "redis://localhost:6379",
         "FIRESTORE_EMULATOR_HOST": "localhost:8080",
         "TEMPORAL_HOST_URL": "localhost:7233"
       }
     },
+
+    // 2. Run Temporal Worker
     {
       "name": "Run Temporal Worker",
       "type": "python",
       "request": "launch",
       "module": "orchestrator.workers.worker_main",
       "justMyCode": false,
+      "envFile": "${workspaceFolder}/.env",
       "env": {
         "TEMPORAL_HOST_URL": "localhost:7233",
         "TEMPORAL_NAMESPACE": "default",
         "TEMPORAL_TASK_QUEUE": "ai-orchestrator-tq",
-        "REDIS_URL": "redis://:devpassword@localhost:6379",
+        "REDIS_URL": "redis://localhost:6379",
         "FIRESTORE_EMULATOR_HOST": "localhost:8080"
       }
     },
+
+    // 3. Run Pytest suite
     {
       "name": "Run Tests",
       "type": "python",
       "request": "launch",
       "module": "pytest",
-      "args": [
-        "-v"
-      ],
+      "args": ["-v"],
       "justMyCode": false,
+      "envFile": "${workspaceFolder}/.env",
       "env": {
-        "REDIS_URL": "redis://:devpassword@localhost:6379",
-        "FIRESTORE_EMULATOR_HOST": "localhost:8080",
         "TEMPORAL_HOST_URL": "localhost:7233",
         "TEMPORAL_NAMESPACE": "default",
-        "TEMPORAL_TASK_QUEUE": "ai-orchestrator-test-tq"
+        "TEMPORAL_TASK_QUEUE": "ai-orchestrator-test-tq",
+        "REDIS_URL": "redis://localhost:6379",
+        "FIRESTORE_EMULATOR_HOST": "localhost:8080"
       }
     }
   ]
