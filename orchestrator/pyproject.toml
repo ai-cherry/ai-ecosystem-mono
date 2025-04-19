@@ -6,7 +6,7 @@ authors = ["Your Team <team@example.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.11"
 fastapi = "^0.95.0"
 pydantic = "^1.10.7"
 uvicorn = "^0.22.0"
@@ -14,11 +14,11 @@ httpx = "^0.24.0"
 temporalio = "^1.1.0"
 redis = "^4.5.5"
 google-cloud-firestore = "^2.11.0"
-pinecone-client = "^2.2.1"
-openai = "^0.27.8"
-langchain = "^0.0.235"
-langchain-redis = "^0.0.1"
+pinecone-client = ">=3,<4"
 langchain-pinecone = "^0.0.1"
+langchain = ">=0.0.230,<0.0.270"
+langchain-redis = "^0.0.1"
+openai = "^0.27.8"
 numpy = "^1.24.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -36,14 +36,14 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 88
-target-version = ['py39']
+target-version = ['py311']
 
 [tool.isort]
 profile = "black"
 line_length = 88
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -51,7 +51,7 @@ disallow_incomplete_defs = true
 
 [tool.pytest.ini_options]
 markers = [
-    "asyncio: mark a test as an asyncio coroutine",
+    "asyncio: mark a test as an asyncio coroutine"
 ]
 testpaths = ["tests"]
 asyncio_mode = "auto"
