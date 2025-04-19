@@ -1,28 +1,27 @@
 {
   "name": "AI Ecosystem Development",
   "build": {
-    "dockerfile": "Dockerfile" // Make sure Dockerfile exists at the root or adjust path
+    "dockerfile": "Dockerfile" // Make sure Dockerfile exists
   },
-  "remoteUser": "vscode", // Or root if needed by setup/installs
+  "remoteUser": "vscode",
   "features": {
-    // Enables Docker commands inside the container
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    // Installs Docker CLI + Server inside the container
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    // <<< ADD THIS FEATURE >>>
+    // Installs Node.js, npm, and yarn. Needed for pnpm install in setup.sh
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts" // Or specify a version like "18", "20"
+    }
+    // <<< END OF ADDITION >>>
   },
-  // Script to run after the container is created
-  "postCreateCommand": "./setup.sh", // Make sure setup.sh exists and is executable
+  // This script will now run *after* Node.js is installed by the feature
+  "postCreateCommand": "./setup.sh", // Make sure setup.sh is executable (chmod +x setup.sh)
 
-  // Optional: Load environment variables from a .env file in the root of the repo
   "envFile": ".env",
-
-  // Set environment variables in the container, potentially using local env vars
   "remoteEnv": {
-    // Example: Pass GCP_PROJECT_ID from your local environment (if set)
-    // Ensure you have GCP_PROJECT_ID set locally if you want this to work
     "FIRESTORE_PROJECT_ID": "${localEnv:GCP_PROJECT_ID}",
-    "PINECONE_ENVIRONMENT": "us-west1-gcp" // Hardcoded value
+    "PINECONE_ENVIRONMENT": "us-west1-gcp"
   },
-
-  // VS Code specific settings and extensions
   "customizations": {
     "vscode": {
       "extensions": [
@@ -33,17 +32,20 @@
         "github.vscode-github-actions",
         "ryanluker.vscode-coverage-gutters",
         "njpwerner.autodocstring",
-        "kodu-ai.claude-dev-experimental" // Note: Ensure this extension ID is correct if non-standard
+        "kodu-ai.claude-dev-experimental",
+        "dbaeumer.vscode-eslint" // Good addition if using JS/TS
       ],
       "settings": {
         "python.linting.enabled": true,
-        "python.linting.flake8Enabled": true, // flake8 needs to be installed in the container
-        "python.formatting.provider": "black", // black needs to be installed
+        "python.linting.flake8Enabled": true, // Flake8 installed via pipx/poetry in setup.sh? Ensure accessible
+        "python.formatting.provider": "black", // Black installed via pipx/poetry? Ensure accessible
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
-          "source.organizeImports": "explicit" // Changed to 'explicit' for clarity, 'true' works too
+          "source.organizeImports": "explicit"
         },
-        "python.testing.pytestEnabled": true // pytest needs to be installed
+        "python.testing.pytestEnabled": true, // Pytest installed via poetry
+        // Add settings for Node/PNPM if desired
+        "eslint.packageManager": "pnpm"
       }
     }
   }
