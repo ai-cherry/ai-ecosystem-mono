@@ -1,0 +1,407 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * *'  # Nightly build at midnight UTC
+
+jobs:
+  # Determine which directories have changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      orchestrator: ${{ steps.filter.outputs.orchestrator }}
+      shared: ${{ steps.filter.outputs.shared }}
+      agents: ${{ steps.filter.outputs.agents }}
+      all: ${{ steps.filter.outputs.all }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            orchestrator:
+              - 'orchestrator/**'
+              - 'shared/**'  # Changes to shared affect orchestrator
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            shared:
+              - 'shared/**'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            agents:
+              - 'agents/**'
+              - 'shared/**'  # Changes to shared affect agents
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            all:
+              - '**'  # Match any file
+
+  # Lint job
+  lint:
+    needs: changes
+    if: ${{ needs.changes.outputs.all == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [orchestrator, shared, agents]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Install dependencies
+        run: |
+          cd ${{ matrix.component }}
+          poetry install --no-interaction
+      - name: Run linters
+        run: |
+          cd ${{ matrix.component }}
+          poetry run black . --check
+          poetry run isort . --check
+          poetry run mypy .
+
+  # Unit tests - one job for each component
+  unit-test-orchestrator:
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.orchestrator == 'true' || needs.changes.outputs.all == 'true' }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Install dependencies
+        run: |
+          cd orchestrator
+          poetry install --no-interaction
+      - name: Run unit tests with coverage
+        run: |
+          cd orchestrator
+          poetry run pytest tests/unit --cov=. --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./orchestrator/coverage.xml
+          flags: unit,orchestrator
+          name: orchestrator-unit
+          fail_ci_if_error: false
+      - name: Create coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          cd orchestrator
+          python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          coverage = float(tree.getroot().attrib['line-rate']) * 100
+          color = 'red' if coverage < 50 else 'orange' if coverage < 80 else 'green'
+          print(f'Coverage: {coverage:.2f}%')
+          with open('coverage-badge.svg', 'w') as f:
+              f.write(f'''<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"108\" height=\"20\" role=\"img\">
+              <linearGradient id=\"s\" x2=\"0\" y2=\"100%\"><stop offset=\"0\" stop-color=\"#bbb\" stop-opacity=\".1\"/><stop offset=\"1\" stop-opacity=\".1\"/></linearGradient>
+              <clipPath id=\"r\"><rect width=\"108\" height=\"20\" rx=\"3\" fill=\"#fff\"/></clipPath>
+              <g clip-path=\"url(#r)\"><rect width=\"63\" height=\"20\" fill=\"#555\"/><rect x=\"63\" width=\"45\" height=\"20\" fill=\"{color}\"/><rect width=\"108\" height=\"20\" fill=\"url(#s)\"/></g>
+              <g fill=\"#fff\" text-anchor=\"middle\" font-family=\"Verdana,Geneva,DejaVu Sans,sans-serif\" text-rendering=\"geometricPrecision\" font-size=\"110\">
+              <text x=\"325\" y=\"140\" transform=\"scale(.1)\" fill=\"#fff\" textLength=\"530\">coverage</text>
+              <text x=\"845\" y=\"140\" transform=\"scale(.1)\" fill=\"#fff\" textLength=\"350\">{coverage:.0f}%</text></g></svg>''')
+          "
+
+  unit-test-shared:
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.shared == 'true' || needs.changes.outputs.all == 'true' }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Install dependencies
+        run: |
+          cd shared
+          poetry install --no-interaction
+      - name: Run unit tests with coverage
+        run: |
+          cd shared
+          poetry run pytest tests/unit --cov=. --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./shared/coverage.xml
+          flags: unit,shared
+          name: shared-unit
+          fail_ci_if_error: false
+      - name: Create coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          cd shared
+          python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          coverage = float(tree.getroot().attrib['line-rate']) * 100
+          color = 'red' if coverage < 50 else 'orange' if coverage < 80 else 'green'
+          print(f'Coverage: {coverage:.2f}%')
+          with open('coverage-badge.svg', 'w') as f:
+              f.write(f'''<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"108\" height=\"20\" role=\"img\">
+              <linearGradient id=\"s\" x2=\"0\" y2=\"100%\"><stop offset=\"0\" stop-color=\"#bbb\" stop-opacity=\".1\"/><stop offset=\"1\" stop-opacity=\".1\"/></linearGradient>
+              <clipPath id=\"r\"><rect width=\"108\" height=\"20\" rx=\"3\" fill=\"#fff\"/></clipPath>
+              <g clip-path=\"url(#r)\"><rect width=\"63\" height=\"20\" fill=\"#555\"/><rect x=\"63\" width=\"45\" height=\"20\" fill=\"{color}\"/><rect width=\"108\" height=\"20\" fill=\"url(#s)\"/></g>
+              <g fill=\"#fff\" text-anchor=\"middle\" font-family=\"Verdana,Geneva,DejaVu Sans,sans-serif\" text-rendering=\"geometricPrecision\" font-size=\"110\">
+              <text x=\"325\" y=\"140\" transform=\"scale(.1)\" fill=\"#fff\" textLength=\"530\">coverage</text>
+              <text x=\"845\" y=\"140\" transform=\"scale(.1)\" fill=\"#fff\" textLength=\"350\">{coverage:.0f}%</text></g></svg>''')
+          "
+
+  unit-test-agents:
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.agents == 'true' || needs.changes.outputs.all == 'true' }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Install dependencies
+        run: |
+          cd agents
+          poetry install --no-interaction
+      - name: Run unit tests with coverage
+        run: |
+          cd agents
+          poetry run pytest tests/unit --cov=. --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./agents/coverage.xml
+          flags: unit,agents
+          name: agents-unit
+          fail_ci_if_error: false
+      - name: Create coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          cd agents
+          python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          coverage = float(tree.getroot().attrib['line-rate']) * 100
+          color = 'red' if coverage < 50 else 'orange' if coverage < 80 else 'green'
+          print(f'Coverage: {coverage:.2f}%')
+          with open('coverage-badge.svg', 'w') as f:
+              f.write(f'''<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"108\" height=\"20\" role=\"img\">
+              <linearGradient id=\"s\" x2=\"0\" y2=\"100%\"><stop offset=\"0\" stop-color=\"#bbb\" stop-opacity=\".1\"/><stop offset=\"1\" stop-opacity=\".1\"/></linearGradient>
+              <clipPath id=\"r\"><rect width=\"108\" height=\"20\" rx=\"3\" fill=\"#fff\"/></clipPath>
+              <g clip-path=\"url(#r)\"><rect width=\"63\" height=\"20\" fill=\"#555\"/><rect x=\"63\" width=\"45\" height=\"20\" fill=\"{color}\"/><rect width=\"108\" height=\"20\" fill=\"url(#s)\"/></g>
+              <g fill=\"#fff\" text-anchor=\"middle\" font-family=\"Verdana,Geneva,DejaVu Sans,sans-serif\" text-rendering=\"geometricPrecision\" font-size=\"110\">
+              <text x=\"325\" y=\"140\" transform=\"scale(.1)\" fill=\"#fff\" textLength=\"530\">coverage</text>
+              <text x=\"845\" y=\"140\" transform=\"scale(.1)\" fill=\"#fff\" textLength=\"350\">{coverage:.0f}%</text></g></svg>''')
+          "
+
+  # Integration tests
+  integration-tests:
+    needs: [changes, unit-test-orchestrator, unit-test-shared, unit-test-agents]
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.orchestrator == 'true' }}
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+      # Add other services like pinecone mock if available
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Install dependencies
+        run: |
+          cd orchestrator
+          poetry install --no-interaction
+      - name: Run integration tests with coverage
+        run: |
+          cd orchestrator
+          poetry run pytest tests/integration --cov=. --cov-report=xml
+        env:
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./orchestrator/coverage.xml
+          flags: integration
+          name: orchestrator-integration
+          fail_ci_if_error: false
+
+  # End-to-end tests
+  e2e-tests:
+    needs: [changes, integration-tests]
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.all == 'true' }}
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+      # Add other services as needed
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Install dependencies
+        run: |
+          cd orchestrator
+          poetry install --no-interaction
+      - name: Start orchestrator in background
+        run: |
+          cd orchestrator
+          poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5  # Give time for the server to start
+        env:
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+      - name: Run E2E tests
+        run: |
+          cd orchestrator
+          poetry run pytest tests/e2e --cov=. --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./orchestrator/coverage.xml
+          flags: e2e
+          name: orchestrator-e2e
+          fail_ci_if_error: false
+
+  # Dependency check (nightly)
+  dependency-check:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [orchestrator, shared, agents]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Check dependencies
+        run: make deps-${{ matrix.component }}
+      - name: Create Pull Request if needed
+        if: failure()
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "fix: Update dependencies for ${{ matrix.component }}"
+          title: "fix: Update dependencies for ${{ matrix.component }}"
+          body: |
+            Automatic update of dependencies for ${{ matrix.component }} due to upstream changes.
+            
+            This PR was created automatically by the nightly dependency check workflow.
+          branch: fix/deps-${{ matrix.component }}-${{ github.run_id }}
+          labels: dependencies, automated pr
+
+  # Load testing (nightly)
+  load-test:
+    if: github.event_name == 'schedule'
+    needs: [changes, e2e-tests]
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+      # Add other services as needed
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Install dependencies
+        run: |
+          cd orchestrator
+          poetry install --no-interaction
+      - name: Start orchestrator in background
+        run: |
+          cd orchestrator
+          poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5  # Give time for the server to start
+        env:
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+      - name: Install k6
+        run: |
+          curl -L https://github.com/grafana/k6/releases/download/v0.42.0/k6-v0.42.0-linux-amd64.tar.gz | tar xz
+          sudo cp k6-v0.42.0-linux-amd64/k6 /usr/local/bin
+      - name: Run load tests
+        run: k6 run orchestrator/tests/load/basic_load_test.js
+        env:
+          BASE_URL: http://localhost:8000
+          API_KEY: test-api-key
+      
+      # Chaos test step - kill Redis during the test
+      - name: Chaos test - Kill Redis
+        if: github.event_name == 'schedule'
+        run: |
+          # Start a new load test
+          k6 run -u 10 -d 30s orchestrator/tests/load/basic_load_test.js &
+          # Let it run for 10 seconds
+          sleep 10
+          # Kill Redis container
+          docker kill "$(docker ps -q --filter ancestor=redis)"
+          # Wait 5 seconds
+          sleep 5
+          # Check if API is still responding with 202 (should use retry mechanisms)
+          curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8000/api/v1/process_async | grep 202
+          # Wait for k6 test to finish
+          wait
+        env:
+          BASE_URL: http://localhost:8000
+          API_KEY: test-api-key

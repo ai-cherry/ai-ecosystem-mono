@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --requirepass devpassword
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Firestore emulator
+  firestore:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    ports:
+      - "8080:8080"
+    command: gcloud beta emulators firestore start --host-port=0.0.0.0:8080
+    environment:
+      - FIRESTORE_PROJECT_ID=dev-project
+    volumes:
+      - firestore-data:/opt/data
+
+  # Temporal server (for workflow orchestration)
+  temporal:
+    image: temporalio/auto-setup:1.20
+    ports:
+      - "7233:7233"
+      - "8233:8233"
+    environment:
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml
+    volumes:
+      - temporal-data:/etc/temporal/config/dynamicconfig
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8233/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Temporal Web UI for easier workflow monitoring
+  temporal-web:
+    image: temporalio/web:1.15
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_GRPC_ENDPOINT=temporal:7233
+      - TEMPORAL_PERMIT_WRITE_API=true
+    ports:
+      - "8088:8088"
+
+volumes:
+  redis-data:
+  firestore-data:
+  temporal-data:

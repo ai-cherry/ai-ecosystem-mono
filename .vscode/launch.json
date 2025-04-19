@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Orchestrator API",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "orchestrator.app.main:app",
+        "--reload",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "jinja": true,
+      "justMyCode": false,
+      "env": {
+        "REDIS_URL": "redis://:devpassword@localhost:6379",
+        "FIRESTORE_EMULATOR_HOST": "localhost:8080",
+        "TEMPORAL_HOST_URL": "localhost:7233"
+      }
+    },
+    {
+      "name": "Run Temporal Worker",
+      "type": "python",
+      "request": "launch",
+      "module": "orchestrator.workers.worker_main",
+      "justMyCode": false,
+      "env": {
+        "TEMPORAL_HOST_URL": "localhost:7233",
+        "TEMPORAL_NAMESPACE": "default",
+        "TEMPORAL_TASK_QUEUE": "ai-orchestrator-tq",
+        "REDIS_URL": "redis://:devpassword@localhost:6379",
+        "FIRESTORE_EMULATOR_HOST": "localhost:8080"
+      }
+    },
+    {
+      "name": "Run Tests",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "-v"
+      ],
+      "justMyCode": false,
+      "env": {
+        "REDIS_URL": "redis://:devpassword@localhost:6379",
+        "FIRESTORE_EMULATOR_HOST": "localhost:8080",
+        "TEMPORAL_HOST_URL": "localhost:7233",
+        "TEMPORAL_NAMESPACE": "default",
+        "TEMPORAL_TASK_QUEUE": "ai-orchestrator-test-tq"
+      }
+    }
+  ]
+}

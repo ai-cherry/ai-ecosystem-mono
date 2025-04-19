@@ -1,0 +1,15 @@
+# Firestore
+google-cloud-firestore
+
+# Redis
+redis
+langchain
+langchain-redis
+
+# VectorStore
+langchain-pinecone
+pinecone-client
+openai
+
+# Common
+pydantic

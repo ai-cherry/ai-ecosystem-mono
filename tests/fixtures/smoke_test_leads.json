@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Acme Corp",
+    "website": "acme-test.example.com",
+    "contact": "john.doe@example.com",
+    "industry": "Software",
+    "employees": "50-100",
+    "source": "LinkedIn"
+  },
+  {
+    "name": "Beta Industries",
+    "website": "beta-test.example.com",
+    "contact": "jane.smith@example.com",
+    "industry": "Manufacturing",
+    "employees": "100-500", 
+    "source": "Apollo"
+  },
+  {
+    "name": "Gamma Services",
+    "website": "gamma-test.example.com",
+    "contact": "sam.wilson@example.com",
+    "industry": "Consulting",
+    "employees": "10-50",
+    "source": "Referral"
+  }
+]

@@ -1,0 +1,80 @@
+name: Build and Push Docker Image
+
+# This is a reusable workflow that other workflows can call
+on:
+  workflow_call:
+    inputs:
+      context_dir:
+        required: true
+        type: string
+        description: 'Directory containing the Dockerfile'
+      image_name:
+        required: true
+        type: string
+        description: 'Name of the Docker image to build'
+      tag:
+        required: false
+        type: string
+        default: 'latest'
+        description: 'Tag for the Docker image'
+      push:
+        required: false
+        type: boolean
+        default: true
+        description: 'Whether to push the image to the registry'
+    secrets:
+      # Reference organization-level secrets
+      GCP_PROJECT_ID:
+        required: true
+      GCP_SA_KEY:
+        required: true
+
+jobs:
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      # Authenticate to Google Cloud
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      
+      # Set up Google Cloud SDK
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+      
+      # Configure docker to use gcloud as a credential helper
+      - name: Configure Docker for GCP
+        run: |
+          gcloud auth configure-docker ${{ secrets.GCP_PROJECT_ID }}-docker.pkg.dev
+      
+      # Build the Docker image
+      - name: Build Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ${{ inputs.context_dir }}
+          push: ${{ inputs.push }}
+          tags: |
+            ${{ secrets.GCP_PROJECT_ID }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ai-ecosystem/${{ inputs.image_name }}:${{ inputs.tag }}
+            ${{ secrets.GCP_PROJECT_ID }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ai-ecosystem/${{ inputs.image_name }}:latest
+          build-args: |
+            PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      # Output image URI for subsequent steps
+      - name: Output Image URI
+        id: image-uri
+        run: |
+          echo "IMAGE_URI=${{ secrets.GCP_PROJECT_ID }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ai-ecosystem/${{ inputs.image_name }}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+      
+      # Output the image URI so we can use it in subsequent jobs
+      - name: Print Image URI
+        run: |
+          echo "Built and pushed image to: ${{ steps.image-uri.outputs.IMAGE_URI }}"

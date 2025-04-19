@@ -1,0 +1,63 @@
+# AI-Ecosystem Budget Configuration
+# ================================
+# This file contains budget and resource limits for the AI-Ecosystem platform
+# Default values are set for Sprint-0
+
+# Token Usage Limits
+# ------------------
+token_budgets:
+  # Daily token caps per agent type (in tokens)
+  daily_caps:
+    default: 1000000  # 1M tokens default for all agents
+    lead_research_agent: 1000000
+    marketing_outreach_agent: 1000000
+    sales_coach_agent: 1000000
+    collections_scoring_agent: 1000000
+    builder_agent: 500000  # Lower cap for builder due to lower priority
+  
+  # System-wide caps
+  system:
+    daily_max: 5000000  # 5M tokens total per day across all agents
+    monthly_max: 100000000  # 100M tokens per month
+  
+  # Alert thresholds (percentage of cap)
+  alerts:
+    warning_threshold: 85  # Alert at 85% of daily budget
+    critical_threshold: 95  # Critical alert at 95% of daily budget
+
+# Observability Settings
+# ---------------------
+langsmith:
+  plan: "Free"  # Free tier (5k traces/mo)
+  traces_limit: 5000
+  upgrade_threshold: 4000  # Consider upgrade when usage exceeds 4k traces (80%)
+
+# Vector Database Settings
+# -----------------------
+vector_maintenance:
+  embedding_refresh:
+    cadence: "manual"  # Options: manual, daily, weekly, monthly
+    auto_refresh_threshold: 5  # Auto-refresh when drift exceeds 5%
+  
+  janitor:
+    schedule: "0 2 * * *"  # Cron schedule (2 AM daily)
+    similarity_threshold: 0.98  # Vectors with similarity >= this are considered duplicates
+    max_deletion_percentage: 5  # Safety threshold: max % of vectors to delete in one run
+
+# Rate Limits
+# -----------
+rate_limits:
+  # Per agent rate limits (calls per minute)
+  agents:
+    default: 10
+    lead_research_agent: 10
+    marketing_outreach_agent: 8
+    sales_coach_agent: 5
+    collections_scoring_agent: 5
+  
+  # External API rate limits
+  external_apis:
+    salesforce: 100  # Calls per minute
+    slack: 50  # Messages per minute
+    apollo: 30  # Requests per minute
+    gong: 20  # Requests per minute
