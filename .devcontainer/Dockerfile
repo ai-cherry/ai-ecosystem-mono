@@ -1,12 +1,11 @@
 # Base image: Python 3.11 Dev Container with common build tools
 FROM mcr.microsoft.com/devcontainers/python:3.11
 
-# Install base system packages
+# Install base system packages (REMOVED docker.io)
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
   && apt-get -y install --no-install-recommends \
     curl gnupg lsb-release \
     redis-tools \
-    docker.io \
     bash-completion \
     git \
   && apt-get clean \
@@ -20,6 +19,8 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.
   apt-get update && apt-get install -y google-cloud-sdk
 
 # Install Terraform
+# Note: Using apt-key add is deprecated, but following original file for now.
+# Consider updating to the recommended signed-by method if issues arise.
 RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add - && \
   apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main" && \
   apt-get update && apt-get install -y terraform
@@ -27,22 +28,20 @@ RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add - && \
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    # Keep this Poetry setting if your setup.sh relies on it
     POETRY_VIRTUALENVS_IN_PROJECT=true
 
-# Copy Python requirement files
-COPY orchestrator-requirements.txt /tmp/orchestrator-requirements.txt
-COPY shared-requirements.txt /tmp/shared-requirements.txt
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r /tmp/orchestrator-requirements.txt && \
-    pip install --no-cache-dir -r /tmp/shared-requirements.txt && \
-    pip install --no-cache-dir \
+# Install Poetry and common Python dev tools globally
+# REMOVED installation from requirements.txt
+# ADDED Poetry installation
+RUN pip install --no-cache-dir \
       poetry \
       pytest pytest-cov \
       black flake8 isort mypy \
       pre-commit temporalio
 
 # Add `vscode` user so Codespaces can run as non-root
+# Ensure tools installed above are accessible to this user (they should be in global site-packages or PATH)
 RUN useradd -m vscode && \
     echo 'vscode ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-vscode && \
     chown -R vscode:vscode /home/vscode
@@ -50,3 +49,6 @@ RUN useradd -m vscode && \
 # Optional: Healthcheck to indicate successful startup
 HEALTHCHECK CMD python -c "import sys; sys.exit(0 if True else 1)"
 
+# Note: Project-specific dependencies (like langchain, pydantic, etc.)
+# should now be installed via Poetry in your setup.sh script (postCreateCommand)
+# after the container is built and the source code is mounted.
