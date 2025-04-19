@@ -1,23 +1,29 @@
 {
   "name": "AI Ecosystem Development",
 
-  // 1. Use Dockerfile in the same folder
+  // Use your Dockerfile for full infra setup
   "build": {
     "dockerfile": "Dockerfile"
   },
 
-  // 2. Use a known working user (vscode must be in image or added)
+  // Use a known user (must exist in image)
   "remoteUser": "vscode",
 
-  // 3. Features: Docker support for dev
+  // Enable Docker-in-Docker so `docker-compose` works inside Codespaces
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
 
-  // 4. Run dev infra when container boots
-  "postCreateCommand": "docker-compose -f docker-compose.dev.yml up -d",
+  // Automatically set up everything on first run
+  "postCreateCommand": "./setup.sh",
 
-  // 5. VS Code customizations
+  // Sync local environment variables into container
+  "remoteEnv": {
+    "FIRESTORE_PROJECT_ID": "${localEnv:GCP_PROJECT_ID}",
+    "PINECONE_ENVIRONMENT": "us-west1-gcp"
+  },
+
+  // Dev-specific VS Code setup
   "customizations": {
     "vscode": {
       "extensions": [
@@ -41,12 +47,5 @@
         "python.testing.pytestEnabled": true
       }
     }
-  },
-
-  // 6. Environment variables passed in
-  "remoteEnv": {
-    "FIRESTORE_PROJECT_ID": "${localEnv:GCP_PROJECT_ID}",
-    "PINECONE_ENVIRONMENT": "us-west1-gcp"
   }
 }
-
