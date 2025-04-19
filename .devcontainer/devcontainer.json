@@ -1,10 +1,23 @@
 {
   "name": "AI Ecosystem Development",
-  "dockerFile": "Dockerfile",
+
+  // 1. Use Dockerfile in the same folder
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  // 2. Use a known working user (vscode must be in image or added)
+  "remoteUser": "vscode",
+
+  // 3. Features: Docker support for dev
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
+
+  // 4. Run dev infra when container boots
   "postCreateCommand": "docker-compose -f docker-compose.dev.yml up -d",
+
+  // 5. VS Code customizations
   "customizations": {
     "vscode": {
       "extensions": [
@@ -29,21 +42,11 @@
       }
     }
   },
-  "secrets": {
-    // Use organization-level secrets
-    "GCP_SERVICE_ACCOUNT_KEY": {
-      "description": "GCP Service Account for development",
-      "documentationUrl": "https://cloud.google.com/iam/docs/creating-managing-service-account-keys"
-    },
-    "PINECONE_API_KEY": {
-      "description": "Pinecone API Key for vector database"
-    },
-    "OPENAI_API_KEY": {
-      "description": "OpenAI API Key for embeddings and LLM"
-    }
-  },
+
+  // 6. Environment variables passed in
   "remoteEnv": {
     "FIRESTORE_PROJECT_ID": "${localEnv:GCP_PROJECT_ID}",
     "PINECONE_ENVIRONMENT": "us-west1-gcp"
   }
 }
+
