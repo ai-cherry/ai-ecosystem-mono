@@ -1,18 +1,28 @@
 {
   "name": "AI Ecosystem Development",
   "build": {
-    "dockerfile": "Dockerfile"
+    "dockerfile": "Dockerfile" // Make sure Dockerfile exists at the root or adjust path
   },
-  "remoteUser": "vscode",
+  "remoteUser": "vscode", // Or root if needed by setup/installs
   "features": {
+    // Enables Docker commands inside the container
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
-  "postCreateCommand": "./setup.sh",
+  // Script to run after the container is created
+  "postCreateCommand": "./setup.sh", // Make sure setup.sh exists and is executable
+
+  // Optional: Load environment variables from a .env file in the root of the repo
   "envFile": ".env",
+
+  // Set environment variables in the container, potentially using local env vars
   "remoteEnv": {
+    // Example: Pass GCP_PROJECT_ID from your local environment (if set)
+    // Ensure you have GCP_PROJECT_ID set locally if you want this to work
     "FIRESTORE_PROJECT_ID": "${localEnv:GCP_PROJECT_ID}",
-    "PINECONE_ENVIRONMENT": "us-west1-gcp"
+    "PINECONE_ENVIRONMENT": "us-west1-gcp" // Hardcoded value
   },
+
+  // VS Code specific settings and extensions
   "customizations": {
     "vscode": {
       "extensions": [
@@ -23,17 +33,17 @@
         "github.vscode-github-actions",
         "ryanluker.vscode-coverage-gutters",
         "njpwerner.autodocstring",
-        "kodu-ai.claude-dev-experimental"
+        "kodu-ai.claude-dev-experimental" // Note: Ensure this extension ID is correct if non-standard
       ],
       "settings": {
         "python.linting.enabled": true,
-        "python.linting.flake8Enabled": true,
-        "python.formatting.provider": "black",
+        "python.linting.flake8Enabled": true, // flake8 needs to be installed in the container
+        "python.formatting.provider": "black", // black needs to be installed
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
-          "source.organizeImports": true
+          "source.organizeImports": "explicit" // Changed to 'explicit' for clarity, 'true' works too
         },
-        "python.testing.pytestEnabled": true
+        "python.testing.pytestEnabled": true // pytest needs to be installed
       }
     }
   }
