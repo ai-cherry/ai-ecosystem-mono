@@ -19,8 +19,6 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.
   apt-get update && apt-get install -y google-cloud-sdk
 
 # Install Terraform
-# Note: Using apt-key add is deprecated, but following original file for now.
-# Consider updating to the recommended signed-by method if issues arise.
 RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add - && \
   apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main" && \
   apt-get update && apt-get install -y terraform
@@ -28,27 +26,21 @@ RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add - && \
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    # Keep this Poetry setting if your setup.sh relies on it
+    # This needs to be set *before* setup.sh runs poetry install
     POETRY_VIRTUALENVS_IN_PROJECT=true
 
-# Install Poetry and common Python dev tools globally
-# REMOVED installation from requirements.txt
-# ADDED Poetry installation
-RUN pip install --no-cache-dir \
-      poetry \
-      pytest pytest-cov \
-      black flake8 isort mypy \
-      pre-commit temporalio
+# Install pipx (which setup.sh will use to install poetry, pre-commit)
+# REMOVED global pip install of poetry, pytest, black, flake8, etc.
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir pipx
 
 # Add `vscode` user so Codespaces can run as non-root
-# Ensure tools installed above are accessible to this user (they should be in global site-packages or PATH)
 RUN useradd -m vscode && \
     echo 'vscode ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/99-vscode && \
     chown -R vscode:vscode /home/vscode
 
-# Optional: Healthcheck to indicate successful startup
+# Optional: Healthcheck
 HEALTHCHECK CMD python -c "import sys; sys.exit(0 if True else 1)"
 
-# Note: Project-specific dependencies (like langchain, pydantic, etc.)
-# should now be installed via Poetry in your setup.sh script (postCreateCommand)
-# after the container is built and the source code is mounted.
+# Note: Project dependencies AND core Python dev tools (poetry, pre-commit)
+# are now installed by setup.sh using pipx and poetry install.
